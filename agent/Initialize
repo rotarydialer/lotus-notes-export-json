@@ -1,0 +1,147 @@
+Sub Initialize
+	On Error Goto err_handle
+	
+	Dim session As New NotesSession
+	Dim db As NotesDatabase
+	Dim selected_docs As NotesDocumentCollection
+	Dim doc As NotesDocument
+	
+	Redim docsToExport(1) As String
+	Redim itemsInDoc(1) As String
+	
+	Set db = session.CurrentDatabase
+	Set selected_docs = db.UnprocessedDocuments
+	
+	Dim x, y As Integer
+	Dim NotesMacro As String
+	
+	Set doc = selected_docs.GetFirstDocument()
+	
+	Redim docsToExport(selected_docs.Count) As String
+	
+%REM
+	TODO:
+		have some way of selecting which fields to export
+%END REM
+	
+	'Format the output and load each selected contact into an array
+	For x = 1 To selected_docs.Count
+		' Print "_______ id: " doc.UniversalID " _______________________"
+		
+		If doc.IsValid Then
+			For y = 0 To Ubound(doc.Items)-1
+				Dim cumulativeJsonString As String
+				Redim itemsInDoc(y) As String
+				
+				Set item = doc.Items(y)
+				
+				Dim itemValue As Variant
+				Dim itemName As String
+				
+				' type diagnostics
+				'If item.Type <> 1280 Then 
+				'	Print "Document " x ", item " y ": DIAG ___ " item.Name " type: " item.Type 
+				'End If
+				
+%REM
+				TODO: handle
+					rich text fields
+					attachments
+					tabs (remove)
+%END REM
+				
+				' skip certain fields because they're annoying
+				If (item.Name = "SQL_output" Or item.Name = "SQL_output_update") Then
+					' skip
+				Else
+					' remove leading "_" from field names
+					itemName = removeLeadingUnderscore(item.Name)
+					
+					' handle field types (poorly!)
+					If (item.Type = 1) Then 		' rich text
+						itemValue = """rich text - wip""" 
+					Elseif item.Type = 768 Then	' number
+						itemValue = item.Values(0)
+					Else 
+						If (Ubound(item.Values) = 0) Then
+							itemValue = """" & replaceQuote(removeCarriage(item.Values(0))) & """"
+						Else
+							itemValue = "[""" & Join(item.Values, """, """) & """]"					
+						End If
+					End If
+				End If
+				
+%REM
+				' debug specific fields
+				If (item.Name = "Comments") Then
+					Print "_________ " & itemName & " _________________________ "
+					Print itemValue
+					
+					Dim crScrubbed As String
+					
+					crScrubbed = removeCarriage(itemValue)
+					Print crScrubbed
+					Print "_____________________________________________________ "
+					itemValue = crScrubbed
+					' cumulativeJsonString = cumulativeJsonString & """" & item.Name & """: " & itemValue & ","
+				End If
+%END REM
+				Dim comma As String 
+				If (y >= Ubound(doc.Items)-1) Then
+					comma = ""
+				Else
+					comma = ","					
+				End If
+				
+				cumulativeJsonString = cumulativeJsonString & """" & itemName & """: " & itemValue & comma
+				
+				'If item.Type <> 1280 Then 
+				'	Print "Document " x ", item " y ": " itemName " -- '" itemValue "'"
+				'End If
+			Next
+			
+			Dim docComma As String 
+			If (x >= selected_docs.Count) Then
+				docComma = ""
+			Else
+				docComma = ","					
+			End If
+			' Print cumulativeJsonString
+			docId = """_id"": """ & doc.UniversalID & ""","
+			docsToExport(x) = "{" & docId & cumulativeJsonString & "}" & docComma
+			
+			cumulativeJsonString = ""
+		End If
+		
+		' Print "_______ id: " doc.UniversalID " _______________________"
+		
+		Set doc = selected_docs.GetNextDocument( doc )
+	Next
+	
+	'Output the results to a file named by the user
+	Dim workspace As New NotesUIWorkspace
+	Dim saved_filename As Variant
+	
+	saved_filename = workspace.OpenFileDialog(True, "Save file as", "JSON files|*.json", "c:\download\")
+	
+	Dim Filenum As Integer
+	Filenum% = Freefile()
+	
+	Open saved_filename(0) For Output As Filenum%
+	
+	Print #Filenum%, "["
+	For x = 1 To Ubound(docsToExport)
+		Print #Filenum%, docsToExport(x)
+	Next
+	Print #Filenum%, "]"
+	
+	Close Filenum%
+	
+	Print Ubound(docsToExport) & " document(s) exported to """ & saved_filename(0) & """."
+	
+	Exit Sub
+	
+err_handle:
+	Messagebox "PouchDB Export - Error " & Err & ": " & Error(Err) & ", line " & Erl
+	Exit Sub
+End Sub

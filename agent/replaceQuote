@@ -1,0 +1,5 @@
+Function replaceQuote(x As String)
+	scrubbed = Replace(x, Chr(34), "\""")
+	
+	replaceQuote = scrubbed	
+End Function

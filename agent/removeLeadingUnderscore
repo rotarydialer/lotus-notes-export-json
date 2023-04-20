@@ -1,0 +1,14 @@
+Function removeLeadingUnderscore(x As String)
+	
+	Dim firstChar As String	
+	firstChar = Instr(x, "_")
+	
+	If (Instr(x, "_") = 1) Then
+		scrubbed = Right(x, Len(x)-1)		
+		removeLeadingUnderscore = scrubbed
+	Else
+		scrubbed = x		
+	End If
+	
+	removeLeadingUnderscore = scrubbed
+End Function

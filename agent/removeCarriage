@@ -1,0 +1,8 @@
+Function removeCarriage(x As Variant)
+	splitChar = Split(x, Chr(10))
+	joinSplit = Join(splitChar, "\r")
+	splitChar2 = Split(joinSPlit, Chr(13))
+	joinSplit2 = Join(splitChar2, "\r")
+	
+	removeCarriage = Fulltrim(joinSplit2)
+End Function
